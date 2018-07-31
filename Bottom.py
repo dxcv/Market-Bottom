@@ -18,7 +18,8 @@ plt.rcParams['axes.unicode_minus'] = False
 
 from WindPy import * 
 w.start()
-nationbonds = w.edb("M0325687", "2007-01-04", "2018-07-25")
+nationbonds = w.edb("M0325687", "2007-01-04", "2018-07-30")
+nationbonds.
 w.close()
 
 
@@ -28,6 +29,7 @@ indicator_data = pd.read_pickle('indicator.pkl')
 market_index = pd.read_excel('市场底部特征研究.xlsx',sheet_name='沪深300')
 M2_data = pd.read_excel('M2指标.xlsx')
 IPO_date = pd.read_excel('A股上市时间.xlsx')
+amount_data = pd.read_csv('eodprices.csv')
 
 ###############################################################################
 '''
@@ -35,7 +37,7 @@ IPO_date = pd.read_excel('A股上市时间.xlsx')
 '''
 # 合并数据
 finance_data = pd.merge(price_data,indicator_data,on=['S_INFO_WINDCODE','TRADE_DT'])
-finance_data = pd.merge(finance_data,IPO_date,how='left',on='S_INFO_WINDCODE')
+amount_data['TRADE_DT'].apply(lambda x:pd.to_datetime(str(x),format='%Y%m%d'))
 
 #提取日收盘价
 stock_close_data = pd.pivot_table(finance_data,values='S_DQ_CLOSE',index='S_INFO_WINDCODE',columns='TRADE_DT')                   
@@ -117,11 +119,10 @@ nationbonds_interest.index = pd.DatetimeIndex(nationbonds_interest.index)
 5.全市场成交额（市场人气）
 '''
 #所有股票成交额
-stock_volume_data = pd.pivot_table(finance_data,values='S_DQ_VOLUME',index='S_INFO_WINDCODE',columns='TRADE_DT')
-stock_volume_data = stock_volume_data.sort_index(axis=1)
+stock_amount_data = pd.pivot_table(amount_data,values='S_DQ_AMOUNT',index='S_INFO_WINDCODE',columns='TRADE_DT')
+stock_amount_data = stock_amount_data.sort_index(axis=1)
 #市场总成交额
-market_volume = stock_volume_data.sum(axis=0)
-market_volume.index = pd.DatetimeIndex(market_volume.index)
+total_amount = stock_amount_data.sum(axis=0)
 
 ###############################################################################
 '''
