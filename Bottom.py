@@ -112,6 +112,8 @@ stock_PE_data = stock_PE_data.sort_index(axis=1)
 stock_PE_data.columns = pd.DatetimeIndex(stock_PE_data.columns)
 stock_PE_median = stock_PE_data.median(axis=0)
 stock_PE_median.index = pd.DatetimeIndex(stock_PE_median.index)
+stock_PE_average = stock_PE_data.mean(axis=0)
+stock_PE_average.index = pd.DatetimeIndex(stock_PE_average.index)
 
 #十年国债收益率
 nationbonds_interest = pd.Series(np.array(nationbonds.Data).reshape(-1),index=nationbonds.Times)
@@ -155,10 +157,33 @@ low_amount_percent.index = pd.DatetimeIndex(low_amount_percent.index)
 '''
 7.个股区间最大跌幅中位数（月区间）
 '''
+temp_finance_data = finance_data
+temp_finance_data['MONTH'] = temp_finance_data['TRADE_DT'].apply(lambda x:x[:6])
 
+price_max = temp_finance_data.groupby(['MONTH','S_INFO_WINDCODE'])['S_DQ_CLOSE'].max()
+price_min = temp_finance_data.groupby(['MONTH','S_INFO_WINDCODE'])['S_DQ_CLOSE'].min()
+price_max = pd.pivot_table(price_max.reset_index(),values='S_DQ_CLOSE',index='S_INFO_WINDCODE',columns='MONTH')
+price_min = pd.pivot_table(price_min.reset_index(),values='S_DQ_CLOSE',index='S_INFO_WINDCODE',columns='MONTH')
 
+temp_finance_data = temp_finance_data.set_index('TRADE_DT')
 
+index_max = temp_finance_data.groupby(['MONTH','S_INFO_WINDCODE'])['S_DQ_CLOSE'].idxmax()
+index_min = temp_finance_data.groupby(['MONTH','S_INFO_WINDCODE'])['S_DQ_CLOSE'].idxmin()
+index_max = index_max.reset_index()
+index_min = index_min.reset_index()
+index_max.columns = ['MONTH','S_INFO_WINDCODE','DATE']
+index_min.columns = ['MONTH','S_INFO_WINDCODE','DATE']
+index_max['DATE'] = index_max['DATE'].apply(lambda x:int(x))
+index_min['DATE'] = index_min['DATE'].apply(lambda x:int(x))
+index_max = pd.pivot_table(index_max,values='DATE',index='S_INFO_WINDCODE',columns='MONTH')
+index_min = pd.pivot_table(index_min,values='DATE',index='S_INFO_WINDCODE',columns='MONTH')
 
+#计算个股月区间最大跌幅中位数
+high = price_max[index_max<index_min]
+low = price_min[index_max<index_min]
+decline_percent = (high - low)/high
+decline_median = decline_percent.median(axis=0)
+decline_median.index = pd.DatetimeIndex(start='2006-12-30',end='2018-07-01',freq='M')
 
 
 ###############################################################################
@@ -178,18 +203,22 @@ for day in stock_close_data.columns:
 subnew_number = subnew_stock.count(axis=0)
 
 
-subnew_PE = pd.DataFrame()
+subnew_PE_median = []
+subnew_PE_average = []
 for day in stock_close_data.columns:
     temp_PE = stock_PE_data[day].reset_index()
-    temp_subnew = subnew_stock[day].dropna().reset_index()
-    temp_PE = temp_PE.reset_index()
-    pe = pd.merge(temp_subnew,temp_PE,how='left',on='index')
-    subnew_PE[day] = pe.iloc[:,-1]
+    temp_PE.columns=['S_INFO_WINDCODE','PE']
+    temp_subnew = pd.DataFrame(subnew_stock[day].dropna())
+    temp_subnew.columns = ['S_INFO_WINDCODE']
+    pe = pd.merge(temp_subnew,temp_PE,how='left',on='S_INFO_WINDCODE')
+    subnew_PE_median.append(pe.iloc[:,-1].median(axis=0))
+    subnew_PE_average.append(pe.iloc[:,-1].mean(axis=0))
     
-subnew_PE_median = subnew_PE.median(axis=0)
+subnew_PE_median = np.array(subnew_PE_median)
+subnew_PE_average = np.array(subnew_PE_average)
 
-diffences_PE_median = subnew_PE_median-stock_PE_median
-
+differences_PE_median = subnew_PE_median-stock_PE_median.values
+differences_PE_average = subnew_PE_average-stock_PE_average.values
 ###############################################################################
 '''
 9. 股票破发率（市场人气）
@@ -227,28 +256,28 @@ lower_ipo_percent = np.array(lower_ipo_stock)/subnew_number.values*100
 c = market_index.iloc[0,-1]
 d = market_index.iloc[2,-1]
 
-assert stock_close_data.columns.shape==lower_ipo_percent.shape
+#assert stock_close_data.columns.shape==lower_ipo_percent.shape
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
 ax1.grid(False)
-ax1.bar(stock_close_data.columns,lower_ipo_percent,width=3.5,linewidth=1.8,color='yellowgreen',label='次新股破发比例',zorder=1)
+ax1.bar(decline_median.index,decline_median,width=10,linewidth=10,color='yellowgreen',label='个股单月最大跌幅中位数',zorder=1)
 #ax1.bar(low_volume_percent.index,low_volume_percent/1.5,width=3.5,linewidth=0.8,color='orange',label='低成交量股票占比',zorder=2)
 #ax1.plot(subnew_PE_median.index,subnew_PE_median, color='purple',linewidth=0.8,label='次新股PE中位数',zorder=3)
-ax1.set_ylabel('破发百分比')#低成交额占比(小于100W)
+ax1.set_ylabel('个股单月最大跌幅中位数')#低成交额占比(小于100W)
 #ax1.set_ylim(0,130)
 ax1.legend(loc='upper right')
 
 ax2 = ax1.twinx()
 ax2.grid(True)
-#ax2.plot(subnew_PE_median.index,subnew_PE_median, color='purple',linewidth=0.8,label='次新股PE中位数',zorder=3)
-#ax2.plot(stock_PE_median.index,stock_PE_median,color='orange',linewidth=0.8,label='市场PE中位数',zorder=4)
+#ax2.plot(stock_PE_average.index,subnew_PE_average, color='purple',linewidth=0.8,label='次新股PE平均值',zorder=3)
+#ax2.plot(stock_PE_average.index,stock_PE_average,color='orange',linewidth=0.8,label='市场PE平均值',zorder=4)
 ax2.plot(market_index.columns,market_index.iloc[0,:],color='red',linewidth=0.8,label='上证综指',zorder=5)
 ax2.plot(market_index.columns,market_index.iloc[2,:]*c/d,color='blue',linewidth=0.8,label='深证成指',zorder=6)
-ax2.set_ylabel('PE')
+ax2.set_ylabel('指数')
 #ax2.set_ylim(0,7000)
 ax2.legend(loc='upper left')
 ax2.set_xlabel('时间')
-plt.savefig('次新股破发比例.jpg',dpi=700)
+plt.savefig('个股单月最大跌幅中位数.jpg',dpi=700)
 
 ####################################################################
 
