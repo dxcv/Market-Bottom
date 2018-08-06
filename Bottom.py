@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 """
 Created on Thu Jul 26 11:09:25 2018
@@ -377,13 +376,13 @@ differences_PE_median = subnew_PE_median-stock_PE_median.values
 fig = plt.figure(figsize=(20,5))
 ax1 = fig.add_subplot(111)
 ax1.grid(False)
-ax1.bar(subnew_PE_median.index[600:],differences_PE_median[600:],width=14,linewidth=10,color='yellowgreen',label='次新股PE中位数溢价',zorder=1)
+ax1.bar(subnew_PE_median.index,differences_PE_median,width=14,linewidth=10,color='yellowgreen',label='次新股PE中位数溢价',zorder=1)
 ax1.set_ylabel('次新股PE中位数溢价')
 ax1.legend(loc='upper right')
 
 ax2 = ax1.twinx()
 ax2.grid(True)
-ax2.plot(subnew_PE_median.index[600:],subnew_PE_median[600:],color='purple',linewidth=0.8,label='次新股PE中位数',zorder=5)
+ax2.plot(subnew_PE_median.index,subnew_PE_median,color='purple',linewidth=0.8,label='次新股PE中位数',zorder=5)
 ax2.plot(stock_PE_median.index,stock_PE_median,color='orange',linewidth=0.8,label='市场PE中位数',zorder=6)
 ax2.set_ylabel('PE中位数')
 ax2.legend(loc='upper left')
@@ -432,14 +431,14 @@ d = market_index.iloc[1,-1]
 fig = plt.figure(figsize=(20,5))
 ax1 = fig.add_subplot(111)
 ax1.grid(False)
-ax1.bar(lower_ipo_percent.index[-1095:],lower_ipo_percent[-1095:],width=3,linewidth=0.8,color='yellowgreen',label='次新股破发率',zorder=2)
+ax1.bar(lower_ipo_percent.index,lower_ipo_percent,width=3,linewidth=0.8,color='yellowgreen',label='次新股破发率',zorder=2)
 ax1.set_ylabel('次新股破发率')
 ax1.legend(loc='upper right')
 
 ax2 = ax1.twinx()
 ax2.grid(True)
-ax2.plot(market_index.columns[-1095:],market_index.iloc[0,-1095:],color='red',linewidth=0.8,label='上证综指',zorder=5)
-ax2.plot(market_index.columns[-1095:],market_index.iloc[1,-1095:]*c/d,color='blue',linewidth=0.8,label='深证成指',zorder=6)
+ax2.plot(market_index.columns,market_index.iloc[0,:],color='red',linewidth=0.8,label='上证综指',zorder=5)
+ax2.plot(market_index.columns,market_index.iloc[1,:]*c/d,color='blue',linewidth=0.8,label='深证成指',zorder=6)
 ax2.set_ylabel('指数')
 ax2.set_ylim(0,7000)
 ax2.legend(loc='upper left')
@@ -458,19 +457,21 @@ d = market_index.iloc[1,-1]
 fig = plt.figure(figsize=(20,5))
 ax1 = fig.add_subplot(111)
 ax1.grid(True)
-ax1.plot(market_index.columns[-1095:],market_index.iloc[0,-1095:],color='yellowgreen',linewidth=0.8,label='上证综指',zorder=1)
-ax1.plot(market_index.columns[-1095:],market_index.iloc[1,-1095:]*c/d,color='orange',linewidth=0.8,label='深证成指',zorder=2)
+ax1.plot(market_index.columns,market_index.iloc[0,:],color='yellowgreen',linewidth=0.8,label='上证综指',zorder=1)
+ax1.plot(market_index.columns,market_index.iloc[1,:]*c/d,color='orange',linewidth=0.8,label='深证成指',zorder=2)
 ax1.set_ylabel('指数')
 ax1.set_ylim(0,7000)
 ax1.legend(loc='upper right')
 
 ax2 = ax1.twinx()
 ax2.grid(False)
-ax2.plot(cny_data.columns[-1095:],cny_data.iloc[0,-1095:],color='red',linewidth=0.8,label='美元兑在岸人民币',zorder=3)
-ax2.plot(cny_data.columns[-1095:],cny_data.iloc[1,-1095:],color='blue',linewidth=0.8,label='美元兑离岸人民币',zorder=3)
+ax2.plot(cny_data.columns[:],cny_data.iloc[0,:],color='red',linewidth=0.8,label='美元兑在岸人民币',zorder=3)
+ax2.plot(cny_data.columns[:],cny_data.iloc[1,:],color='blue',linewidth=0.8,label='美元兑离岸人民币',zorder=3)
 ax2.set_ylabel('汇率变动')
 ax2.set_ylim(4,10)
 ax2.legend(loc='upper left')
 ax2.set_xlabel('时间')
 plt.savefig('汇率与指数.jpg',dpi=1000)
+
+
 
