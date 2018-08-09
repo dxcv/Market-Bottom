@@ -38,6 +38,8 @@ nationbonds_interest.columns = pd.DatetimeIndex(nationbonds_interest.columns)
 m2_data.columns = pd.DatetimeIndex(m2_data.columns)
 cny_data.columns = pd.DatetimeIndex(cny_data.columns)
 
+
+
 import cx_Oracle
 dsn = cx_Oracle.makedsn('10.88.102.160','1521','gfdwdb1')
 conn = cx_Oracle.connect('jcquery','83936666',dsn)
@@ -47,26 +49,26 @@ sql_accounting = "select s_info_windcode, trade_dt, s_val_mv, s_val_pe_ttm, s_va
 sql_ipo_date = "select s_info_windcode, s_info_listdate from gfwind.AShareDescription"
 sql_ipo_price = "select s_info_windcode, s_ipo_price from gfwind.AShareIPO"
 
+
 stock_price = pd.read_sql(sql_price,conn)
 stock_accounting = pd.read_sql(sql_accounting,conn)
+
 ipo_date = pd.read_sql(sql_ipo_date,conn)
 ipo_price = pd.read_sql(sql_ipo_price,conn)
 
 ###############################################################################
 
-
 ###############################################################################
 '''
 0. 准备工作
 '''
-# 合并数据
+#合并数据
+
 #股票日收盘价，成交量，成交额，PE，PB，市值
 finance_data = pd.merge(stock_price,stock_accounting,on=['S_INFO_WINDCODE','TRADE_DT'])
 #股票上市日期和发行价
 ipo_data = pd.merge(ipo_date,ipo_price,on='S_INFO_WINDCODE')
 
-
-# finance_data 所有数据
 
 #提取日收盘价
 stock_close_data = pd.pivot_table(finance_data,values='S_DQ_CLOSE',index='S_INFO_WINDCODE',columns='TRADE_DT')                   
@@ -126,6 +128,9 @@ Plot_Stock(data_a=low_price_percent,data_b=market_index,label_a='低价股比例
 stock_PB_data = pd.pivot_table(finance_data,values='S_VAL_PB_NEW',index='S_INFO_WINDCODE',columns='TRADE_DT')
 stock_PB_data = stock_PB_data.sort_index(axis=1)
 stock_PB_number = stock_PB_data.count(axis=0)
+stock_PB_median = stock_PB_data.median(axis=0)
+stock_PB_average = stock_PB_data.mean(axis=0)
+
 #筛选低PB
 low_PB = 1
 low_PB_data = stock_PB_data[stock_PB_data<low_PB]
@@ -192,6 +197,7 @@ stock_PE_data = pd.pivot_table(finance_data,values='S_VAL_PE_TTM',index='S_INFO_
 stock_PE_data = stock_PE_data.sort_index(axis=1)
 stock_PE_data.columns = pd.DatetimeIndex(stock_PE_data.columns)
 stock_PE_median = stock_PE_data.median(axis=0)
+stock_PE_average = stock_PE_data.mean(axis=0)
 
 nationbonds_interest = nationbonds_interest.T
 
@@ -318,13 +324,13 @@ d = market_index.iloc[1,-1]
 
 fig = plt.figure(figsize=(20,5))
 ax1 = fig.add_subplot(111)
-ax1.grid(False)
-ax1.bar(decline_median.index,decline_median,width=14,linewidth=10,color='yellowgreen',label='个股最大跌幅中位数',zorder=1)
+ax1.grid(True)
+ax1.bar(decline_median.index,decline_median,width=14,linewidth=0.8,color='yellowgreen',label='个股最大跌幅中位数',zorder=1)
 ax1.set_ylabel('个股最大跌幅中位数')
 ax1.legend(loc='upper right')
 
 ax2 = ax1.twinx()
-ax2.grid(True)
+ax2.grid(False)
 ax2.plot(market_index.columns,market_index.iloc[0,:],color='red',linewidth=0.8,label='上证综指',zorder=5)
 ax2.plot(market_index.columns,market_index.iloc[1,:]*c/d,color='blue',linewidth=0.8,label='深证成指',zorder=6)
 ax2.set_ylabel('指数')
@@ -332,7 +338,6 @@ ax2.set_ylim(0,7000)
 ax2.legend(loc='upper left')
 ax2.set_xlabel('时间')
 plt.savefig('个股单月最大跌幅中位数.jpg',dpi=1000)
-
 
 
 ###############################################################################
@@ -357,6 +362,7 @@ subnew_number = subnew_stock.count(axis=0)
 
 #计算次新股PE中位数
 subnew_PE_median = []
+subnew_PE_average = []
 for day in stock_PE_data.columns:
     temp_PE = stock_PE_data[day].reset_index()
     temp_PE.columns=['S_INFO_WINDCODE','PE']
@@ -364,36 +370,115 @@ for day in stock_PE_data.columns:
     temp_subnew.columns = ['S_INFO_WINDCODE']
     pe = pd.merge(temp_subnew,temp_PE,how='left',on='S_INFO_WINDCODE')
     subnew_PE_median.append(pe.iloc[:,-1].median(axis=0))
+    subnew_PE_average.append(pe.iloc[:,-1].mean(axis=0))
 
 #次新股PE中位数    
 subnew_PE_median = np.array(subnew_PE_median)
 subnew_PE_median = pd.Series(subnew_PE_median,index=stock_PE_median.index)
 
+subnew_PE_average = np.array(subnew_PE_average)
+subnew_PE_average = pd.Series(subnew_PE_average,index=stock_PE_median.index)
+
 #次新股PE溢价
 differences_PE_median = subnew_PE_median-stock_PE_median.values
+differneces_PE_average = subnew_PE_average-stock_PE_average.values
 
+'''
+次新股PE中位数与市场指数
+'''
+fig = plt.figure(figsize=(20,5))
+ax1 = fig.add_subplot(111)
+ax1.grid(True)
+ax1.bar(subnew_PE_median.index[500:],differences_PE_median[500:],width=5,linewidth=1,color='yellowgreen',label='次新股PE中位数溢价',zorder=1)
+ax1.set_ylabel('次新股PE中位数溢价')
+ax1.legend(loc='upper right')
+
+ax2 = ax1.twinx()
+ax2.grid(False)
+ax2.plot(market_index.columns,market_index.iloc[0,:],color='red',linewidth=0.8,label='上证综指',zorder=5)
+ax2.plot(market_index.columns,market_index.iloc[1,:]*c/d,color='blue',linewidth=0.8,label='深证成指',zorder=6)
+ax2.set_ylabel('指数')
+ax2.legend(loc='upper left')
+ax2.set_xlabel('时间')
+plt.savefig('次新股PE中位数与市场指数.jpg',dpi=1000)
+
+
+'''
+次新股PE中位数与市场中位数
 
 fig = plt.figure(figsize=(20,5))
 ax1 = fig.add_subplot(111)
 ax1.grid(False)
-ax1.bar(subnew_PE_median.index,differences_PE_median,width=14,linewidth=10,color='yellowgreen',label='次新股PE中位数溢价',zorder=1)
+ax1.bar(subnew_PE_median.index[500:],differences_PE_median[500:],width=14,linewidth=10,color='yellowgreen',label='次新股PE中位数溢价',zorder=1)
 ax1.set_ylabel('次新股PE中位数溢价')
 ax1.legend(loc='upper right')
 
 ax2 = ax1.twinx()
 ax2.grid(True)
-ax2.plot(subnew_PE_median.index,subnew_PE_median,color='purple',linewidth=0.8,label='次新股PE中位数',zorder=5)
-ax2.plot(stock_PE_median.index,stock_PE_median,color='orange',linewidth=0.8,label='市场PE中位数',zorder=6)
+ax2.plot(subnew_PE_median.index[500:],subnew_PE_median[500:],color='purple',linewidth=0.8,label='次新股PE中位数',zorder=5)
+ax2.plot(stock_PE_median.index[500:],stock_PE_median[500:],color='orange',linewidth=0.8,label='市场PE中位数',zorder=6)
 ax2.set_ylabel('PE中位数')
 ax2.legend(loc='upper left')
 ax2.set_xlabel('时间')
 plt.savefig('次新股PE中位数.jpg',dpi=1000)
 
-
+'''
 
 ###############################################################################
 '''
-9. 次新股破发率（市场人气）
+9.次新股(上市一年内)PB（市场人气）
+'''
+
+#计算次新股PB中位数
+subnew_PB_median = []
+subnew_PB_average = []
+for day in stock_PB_data.columns:
+    temp_PB = stock_PB_data[day].reset_index()
+    temp_PB.columns=['S_INFO_WINDCODE','PB']
+    #得到每日次新股股票代码
+    temp_subnew = pd.DataFrame(subnew_stock[day].dropna())
+    temp_subnew.columns = ['S_INFO_WINDCODE']
+    pe = pd.merge(temp_subnew,temp_PB,how='left',on='S_INFO_WINDCODE')
+    subnew_PB_median.append(pe.iloc[:,-1].median(axis=0))
+    subnew_PB_average.append(pe.iloc[:,-1].mean(axis=0))
+
+#次新股PE中位数    
+subnew_PB_median = np.array(subnew_PB_median)
+subnew_PB_median = pd.Series(subnew_PB_median,index=stock_PB_median.index)
+
+subnew_PB_average = np.array(subnew_PB_average)
+subnew_PB_average = pd.Series(subnew_PB_average,index=stock_PB_median.index)
+
+#次新股PE溢价
+differences_PB_median = subnew_PB_median-stock_PB_median.values
+differneces_PB_average = subnew_PB_average-stock_PB_average.values
+
+
+'''
+次新股PB中位数与市场指数
+'''
+fig = plt.figure(figsize=(20,5))
+ax1 = fig.add_subplot(111)
+ax1.grid(True)
+ax1.bar(subnew_PB_median.index[500:],differences_PB_median[500:],width=5,linewidth=1,color='yellowgreen',label='次新股PB中位数溢价',zorder=1)
+ax1.set_ylabel('次新股PB中位数溢价')
+ax1.legend(loc='upper right')
+
+ax2 = ax1.twinx()
+ax2.grid(False)
+ax2.plot(market_index.columns,market_index.iloc[0,:],color='red',linewidth=0.8,label='上证综指',zorder=5)
+ax2.plot(market_index.columns,market_index.iloc[1,:]*c/d,color='blue',linewidth=0.8,label='深证成指',zorder=6)
+ax2.set_ylabel('指数')
+ax2.legend(loc='upper left')
+ax2.set_xlabel('时间')
+plt.savefig('次新股PB中位数与市场指数.jpg',dpi=1000)
+
+
+
+###############################################################################
+
+'''
+10. 次新股破发率（市场人气）
 '''
 #时间横截面破发股比例
 def Lower_Stock(IPO_data,subnew_stock,stock_close_data,day):
@@ -445,9 +530,9 @@ ax2.legend(loc='upper left')
 ax2.set_xlabel('时间')
 plt.savefig('次新股破发率.jpg',dpi=1000)
 
-####################################################################
+###############################################################################
 '''
-10. 汇率和指数
+11. 汇率和指数
 '''
 
 c = market_index.iloc[0,-1]
@@ -472,6 +557,3 @@ ax2.set_ylim(4,10)
 ax2.legend(loc='upper left')
 ax2.set_xlabel('时间')
 plt.savefig('汇率与指数.jpg',dpi=1000)
-
-
-
